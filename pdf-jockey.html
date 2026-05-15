@@ -442,11 +442,9 @@ function handleCardClick(id, e) {
     else selectedIds.add(id);
     lastClickedPageId = id;
   } else {
-    if (selectedIds.size === 1 && selectedIds.has(id)) {
-      selectedIds.clear(); lastClickedPageId = null;
-    } else {
-      selectedIds.clear(); selectedIds.add(id); lastClickedPageId = id;
-    }
+    if (selectedIds.has(id)) selectedIds.delete(id);
+    else selectedIds.add(id);
+    lastClickedPageId = id;
   }
   updateSelectionVisuals();
   updateSelectionBar();
