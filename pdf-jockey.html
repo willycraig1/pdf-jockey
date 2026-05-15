@@ -132,9 +132,11 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Card footer ── */
-    .card-footer { padding: 7px 8px 8px; border-top: 1px solid #f1f5f9; }
+    .card-footer { padding: 11px 8px 12px; border-top: 1px solid #f1f5f9; }
     .card-filename { font-size: 10px; color: #94a3b8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 1px; }
-    .card-pagenum { font-size: 12px; font-weight: 600; color: #475569; }
+    .card-pagenum { display: flex; justify-content: space-between; align-items: center; }
+    .orig-pagenum { font-size: 10px; font-weight: 400; color: #cbd5e1; }
+    .new-pagenum  { font-size: 12px; font-weight: 600; color: #475569; }
 
     /* ── Card action buttons ── */
     .card-actions {
@@ -518,6 +520,7 @@ function rebuildGrid() {
     const card = document.querySelector(`#page-grid .page-card[data-id="${p.id}"]`);
     if (card) grid.appendChild(card);
   });
+  updatePageNumbers();
 }
 
 // ── Custom Multi-Drag ──────────────────────────────────────────────────────
@@ -861,7 +864,10 @@ function appendCard(pageObj) {
     <div class="thumb-container"><div class="thumb-loading"></div></div>
     <div class="card-footer">
       <div class="card-filename" title="${pageObj.fileName}">${shortName}</div>
-      <div class="card-pagenum">p. ${pageObj.pageIndex + 1}</div>
+      <div class="card-pagenum">
+        <span class="orig-pagenum">(${pageObj.pageIndex + 1})</span>
+        <span class="new-pagenum"></span>
+      </div>
     </div>
     <div class="card-actions">
       <button class="action-btn btn-delete" title="Delete page"
@@ -991,11 +997,18 @@ function showGridView() {
   checkEmpty();
 }
 
+function updatePageNumbers() {
+  pages.forEach((p, idx) => {
+    const el = document.querySelector(`.page-card[data-id="${p.id}"] .new-pagenum`);
+    if (el) el.textContent = idx + 1;
+  });
+}
+
 function checkEmpty() {
   const empty = document.getElementById('empty-message');
   const grid  = document.getElementById('page-grid');
   if (pages.length === 0) { empty.style.display = 'flex'; grid.style.display = 'none'; }
-  else                    { empty.style.display = 'none'; grid.style.display = 'block'; }
+  else                    { empty.style.display = 'none'; grid.style.display = 'block'; updatePageNumbers(); }
 }
 
 function updateHeader() {
