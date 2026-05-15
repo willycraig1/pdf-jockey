@@ -154,6 +154,20 @@
     .btn-delete { background: #ef4444; color: white; }
     .btn-delete:hover { background: #dc2626; }
 
+    /* ── Preview button ── */
+    .preview-btn {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(15,23,42,.72); color: white;
+      border: none; border-radius: 20px;
+      font-size: 12px; padding: 5px 13px;
+      cursor: pointer; backdrop-filter: blur(4px);
+      opacity: 0; transition: opacity .15s; z-index: 10;
+      white-space: nowrap; letter-spacing: .3px;
+    }
+    .page-card:hover .preview-btn { opacity: 1; }
+    .preview-btn:hover { background: rgba(15,23,42,.9); }
+
     /* ── Rotate pills ── */
     .rotate-btns {
       position: absolute; bottom: 36px; left: 50%; transform: translateX(-50%);
@@ -815,8 +829,10 @@ async function renderThumbnail(pageObj, thumbWidth = 164) {
       const card = document.querySelector(`.page-card[data-id="${pageObj.id}"]`);
       if (!card) return;
       const container = card.querySelector('.thumb-container');
+      const previewBtn = container.querySelector('.preview-btn');
       container.style.minHeight = '0';
       container.innerHTML = `<img src="${dataURL}" alt="${pageObj.fileName}" draggable="false">`;
+      if (previewBtn) container.appendChild(previewBtn);
       card.style.width = outW + 'px';
       return;
     }
@@ -837,14 +853,18 @@ async function renderThumbnail(pageObj, thumbWidth = 164) {
     const card    = document.querySelector(`.page-card[data-id="${pageObj.id}"]`);
     if (!card) return;
     const container = card.querySelector('.thumb-container');
+    const previewBtn = container.querySelector('.preview-btn');
     container.style.minHeight = '0';
     container.innerHTML = `<img src="${dataURL}" alt="Page ${pageObj.pageIndex + 1}" draggable="false">`;
+    if (previewBtn) container.appendChild(previewBtn);
     card.style.width = canvas.width + 'px';
   } catch {
     const card = document.querySelector(`.page-card[data-id="${pageObj.id}"]`);
     if (!card) return;
-    card.querySelector('.thumb-container').innerHTML =
-      `<div style="padding:20px;font-size:11px;color:#94a3b8;text-align:center">Preview<br>unavailable</div>`;
+    const tc = card.querySelector('.thumb-container');
+    const previewBtn = tc.querySelector('.preview-btn');
+    tc.innerHTML = `<div style="padding:20px;font-size:11px;color:#94a3b8;text-align:center">Preview<br>unavailable</div>`;
+    if (previewBtn) tc.appendChild(previewBtn);
   }
 }
 
@@ -861,7 +881,11 @@ function appendCard(pageObj) {
 
   card.innerHTML = `
     <div class="select-dot"></div>
-    <div class="thumb-container"><div class="thumb-loading"></div></div>
+    <div class="thumb-container">
+      <div class="thumb-loading"></div>
+      <button class="preview-btn" title="Preview page"
+        onclick="event.stopPropagation(); openLightbox(${pageObj.id})">⊙ Preview</button>
+    </div>
     <div class="card-footer">
       <div class="card-filename" title="${pageObj.fileName}">${shortName}</div>
       <div class="card-pagenum">
@@ -935,8 +959,10 @@ async function rotatePage(id, deg) {
   if (card) {
     card.style.width = '164px';
     const container = card.querySelector('.thumb-container');
+    const previewBtn = container.querySelector('.preview-btn');
     container.style.minHeight = '130px';
     container.innerHTML = '<div class="thumb-loading"></div>';
+    if (previewBtn) container.appendChild(previewBtn);
   }
   await renderThumbnail(pageObj);
 }
