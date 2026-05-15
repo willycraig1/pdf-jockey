@@ -77,10 +77,8 @@
     /* ── Grid View ── */
     #grid-view { display: none; padding: 20px; }
     #page-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-      gap: 14px;
-      align-items: start;
+      font-size: 0;
+      line-height: 0;
     }
 
     /* ── Toolbar ── */
@@ -89,6 +87,8 @@
 
     /* ── Page Card ── */
     .page-card {
+      display: inline-block; vertical-align: bottom;
+      margin: 0 14px 14px 0;
       background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.09);
       overflow: visible; cursor: grab;
       transition: box-shadow .15s, transform .15s, border-color .15s;
@@ -814,8 +814,9 @@ async function renderThumbnail(pageObj, thumbWidth = 164) {
       const card = document.querySelector(`.page-card[data-id="${pageObj.id}"]`);
       if (!card) return;
       const container = card.querySelector('.thumb-container');
-      container.style.minHeight = 'unset';
+      container.style.minHeight = '0';
       container.innerHTML = `<img src="${dataURL}" alt="${pageObj.fileName}" draggable="false">`;
+      card.style.width = outW + 'px';
       return;
     }
 
@@ -835,8 +836,9 @@ async function renderThumbnail(pageObj, thumbWidth = 164) {
     const card    = document.querySelector(`.page-card[data-id="${pageObj.id}"]`);
     if (!card) return;
     const container = card.querySelector('.thumb-container');
-    container.style.minHeight = 'unset';
+    container.style.minHeight = '0';
     container.innerHTML = `<img src="${dataURL}" alt="Page ${pageObj.pageIndex + 1}" draggable="false">`;
+    card.style.width = canvas.width + 'px';
   } catch {
     const card = document.querySelector(`.page-card[data-id="${pageObj.id}"]`);
     if (!card) return;
@@ -899,6 +901,7 @@ function appendCard(pageObj) {
     pendingDragStart    = { x: e.clientX, y: e.clientY };
   });
 
+  card.style.width = '164px';
   grid.appendChild(card);
 }
 
@@ -926,6 +929,7 @@ async function rotatePage(id, deg) {
   lbPageCache.delete(id); // cached canvas is now stale
   const card = document.querySelector(`.page-card[data-id="${id}"]`);
   if (card) {
+    card.style.width = '164px';
     const container = card.querySelector('.thumb-container');
     container.style.minHeight = '130px';
     container.innerHTML = '<div class="thumb-loading"></div>';
@@ -993,7 +997,7 @@ function checkEmpty() {
   const empty = document.getElementById('empty-message');
   const grid  = document.getElementById('page-grid');
   if (pages.length === 0) { empty.style.display = 'flex'; grid.style.display = 'none'; }
-  else                    { empty.style.display = 'none'; grid.style.display = 'grid'; }
+  else                    { empty.style.display = 'none'; grid.style.display = 'block'; }
 }
 
 function updateHeader() {
