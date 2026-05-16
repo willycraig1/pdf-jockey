@@ -28,7 +28,11 @@
       z-index: 100;
       box-shadow: 0 1px 6px rgba(0,0,0,.07);
     }
-    .logo { font-size: 17px; font-weight: 700; color: #c8392b; letter-spacing: -.4px; white-space: nowrap; }
+    .logo { font-size: 18px; font-weight: 700; color: #c8392b; letter-spacing: -.4px; white-space: nowrap; }
+    .logo-mark       { display: inline-flex; align-items: center; vertical-align: middle; position: relative; top: -2px; }
+    .logo-bracket    { font-size: 22px; font-weight: 400; letter-spacing: 0; line-height: 1; }
+    .logo-bracket-sm { font-size: 13px; font-weight: 600; letter-spacing: 0; line-height: 1; }
+    .logo-bracket-xs { font-size:  8px; font-weight: 800; letter-spacing: 0; line-height: 1; }
     .page-count { font-size: 12px; color: #94a3b8; white-space: nowrap; }
     .file-badges { display: flex; gap: 5px; flex-wrap: wrap; flex: 1; overflow: hidden; }
     .file-badge {
@@ -37,6 +41,21 @@
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 180px;
     }
     .header-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+    .blank-group { display: none; align-items: center; gap: 0; }
+    .blank-group.visible { display: flex; }
+    .blank-group .btn { border-radius: 8px 0 0 8px; border-right: none; height: 34px; box-sizing: border-box; }
+    #blank-format {
+      height: 34px; box-sizing: border-box;
+      border: 1px solid #cbd5e1; border-left: none;
+      border-radius: 0 8px 8px 0; background: #fff; color: #475569;
+      font-family: inherit; font-size: 13px; font-weight: 500;
+      padding: 0 22px 0 8px;
+      cursor: pointer; outline: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2394a3b8' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 6px center;
+    }
+    #blank-format:hover { background-color: #f8fafc; }
+    #blank-format option { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
 
     /* ── Buttons ── */
     .btn {
@@ -154,6 +173,19 @@
       box-shadow: 0 2px 6px rgba(0,0,0,.2); transition: transform .1s;
     }
     .action-btn:hover { transform: scale(1.15); }
+    .btn-duplicate { background: #475569; color: white; }
+    .btn-duplicate:hover { background: #334155; }
+    .page-card-ghost {
+      display: inline-flex; vertical-align: bottom;
+      margin: 0 14px 14px 0; width: 164px; box-sizing: border-box;
+      border-radius: 10px; border: 2px dashed #22c55e;
+      background: rgba(34,197,94,.06); pointer-events: none;
+      align-items: center; justify-content: center;
+      color: rgba(34,197,94,.45); font-size: 26px;
+      opacity: 0; transform: scale(0.9);
+      transition: opacity .18s, transform .18s;
+    }
+    .page-card-ghost.ghost-visible { opacity: 1; transform: scale(1); }
     .btn-delete { background: #ef4444; color: white; }
     .btn-delete:hover { background: #dc2626; }
 
@@ -296,7 +328,7 @@
       opacity: 0; transition: opacity .15s; pointer-events: none;
     }
     #lb-panel:hover #lb-controls { opacity: 1; pointer-events: auto; }
-    .lb-ctl-zoom, .lb-ctl-delete {
+    .lb-ctl-zoom, .lb-ctl-duplicate, .lb-ctl-delete {
       position: absolute; top: 12px;
       width: 28px; height: 28px; border-radius: 50%; border: none;
       color: white; font-size: 15px;
@@ -304,10 +336,12 @@
       box-shadow: 0 2px 8px rgba(0,0,0,.4); transition: background .1s, transform .1s;
       backdrop-filter: blur(4px);
     }
-    .lb-ctl-zoom   { left: 12px;  background: rgba(15,23,42,.72); }
-    .lb-ctl-delete { right: 12px; background: #ef4444; }
-    .lb-ctl-zoom:hover   { background: rgba(15,23,42,.9);  transform: scale(1.1); }
-    .lb-ctl-delete:hover { background: #dc2626; transform: scale(1.1); }
+    .lb-ctl-zoom      { left: 12px;  background: rgba(15,23,42,.72); }
+    .lb-ctl-duplicate { right: 48px; background: #475569; }
+    .lb-ctl-delete    { right: 12px; background: #ef4444; }
+    .lb-ctl-zoom:hover      { background: rgba(15,23,42,.9);  transform: scale(1.1); }
+    .lb-ctl-duplicate:hover { background: #334155; transform: scale(1.1); }
+    .lb-ctl-delete:hover    { background: #dc2626; transform: scale(1.1); }
     .lb-ctl-rotate {
       position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
       display: flex; gap: 6px;
@@ -396,14 +430,25 @@
 
 <!-- Header -->
 <header>
-  <div class="logo">🏇 PDF Jockey</div>
+  <div class="logo"><span class="logo-mark"><span class="logo-bracket-xs">[</span><span class="logo-bracket-sm">[</span><span class="logo-bracket">[</span>🏇<span class="logo-bracket">]</span><span class="logo-bracket-sm">]</span><span class="logo-bracket-xs">]</span></span> PDF Jockey</div>
   <div class="page-count" id="page-count"></div>
   <div class="file-badges" id="file-badges"></div>
   <div class="header-actions">
     <input type="file" id="file-input-add" accept=".pdf,.jpg,.jpeg,.png" multiple style="display:none">
     <button class="btn btn-ghost" id="add-btn" style="display:none"
       onclick="document.getElementById('file-input-add').click()">+ Add Files</button>
-    <button class="btn btn-primary" id="export-btn" style="display:none"
+    <div class="blank-group" id="blank-group">
+      <button class="btn btn-ghost" onclick="addBlankPage()">+ Blank Page</button>
+      <select id="blank-format">
+        <option value="letter">Letter</option>
+        <option value="a4">A4</option>
+        <option value="legal">Legal</option>
+        <option value="tabloid">Tabloid</option>
+      </select>
+    </div>
+    <button class="btn btn-ghost" id="export-sel-btn" style="display:none"
+      onclick="exportPDF([...selectedIds])">⬇ Export Selection</button>
+<button class="btn btn-primary" id="export-btn" style="display:none"
       onclick="exportPDF()">⬇ Save PDF</button>
   </div>
 </header>
@@ -461,6 +506,8 @@
       <div id="lb-controls">
         <button class="lb-ctl-zoom" title="Zoom in (scroll to adjust, tap to reset)"
           onclick="event.stopPropagation(); lbZoomEnter()">⊕</button>
+        <button class="lb-ctl-duplicate" title="Duplicate page"
+          onclick="event.stopPropagation(); lbDuplicateCurrent()">⧉</button>
         <button class="lb-ctl-delete" title="Delete page"
           onclick="event.stopPropagation(); lbDeleteCurrent()"><svg width="13" height="14" viewBox="0 0 13 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3.5h11"/><path d="M4.5 3.5v-2h4v2"/><path d="M2.5 3.5l.8 8.5h6.4l.8-8.5"/></svg></button>
         <div class="lb-ctl-rotate">
@@ -503,6 +550,7 @@ let pages        = [];          // [{ id, fileId, fileName, pageIndex, rotation 
 let pdfCache     = new Map();   // fileId → { pdfLibDoc, pdfJsDoc, fileName }
 let pageIdCounter  = 0;
 let fileIdCounter  = 0;
+let exportCount    = 0;
 // ── Selection state ────────────────────────────────────────────────────────
 let selectedIds       = new Set();
 let lastClickedPageId = null;
@@ -585,6 +633,7 @@ function updateSelectionBar() {
   const bar    = document.getElementById('selection-bar');
   const countEl = document.getElementById('sel-count');
   const label  = document.querySelector('.toolbar-label');
+  const selBtn = document.getElementById('export-sel-btn');
   const n = selectedIds.size;
   if (n > 0) {
     countEl.textContent = n;
@@ -593,10 +642,12 @@ function updateSelectionBar() {
       n >= 2
         ? `${n} pages selected — drag any selected page to move the group · Delete to remove`
         : `${n} page selected — Delete to remove`;
+    if (selBtn) selBtn.style.display = '';
   } else {
     bar.classList.remove('visible');
     if (label) label.textContent =
       'Drag to reorder · Ctrl/⌘+click or Shift+click to select · Hover for controls';
+    if (selBtn) selBtn.style.display = 'none';
   }
 }
 
@@ -895,6 +946,30 @@ async function renderThumbnail(pageObj, thumbWidth = 164) {
     const cache = pdfCache.get(pageObj.fileId);
     if (!cache) return;
 
+    // ── Blank page ─────────────────────────────────────────────────────────
+    if (cache.isBlank) {
+      const rotation = pageObj.rotation;
+      const swap = rotation === 90 || rotation === 270;
+      const pw = cache.pageWidth, ph = cache.pageHeight;
+      const scale = thumbWidth / pw;
+      const outW = swap ? Math.round(ph * scale) : Math.round(pw * scale);
+      const outH = swap ? Math.round(pw * scale) : Math.round(ph * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = outW; canvas.height = outH;
+      canvas.getContext('2d').fillStyle = '#fff';
+      canvas.getContext('2d').fillRect(0, 0, outW, outH);
+      const dataURL = canvas.toDataURL('image/jpeg', 0.82);
+      const card = document.querySelector(`.page-card[data-id="${pageObj.id}"]`);
+      if (!card) return;
+      const container = card.querySelector('.thumb-container');
+      const previewBtn = container.querySelector('.preview-btn');
+      container.style.minHeight = '0';
+      container.innerHTML = `<img src="${dataURL}" alt="Blank Page" draggable="false">`;
+      if (previewBtn) container.appendChild(previewBtn);
+      card.style.width = outW + 'px';
+      return;
+    }
+
     // ── Image file (JPG / PNG) ─────────────────────────────────────────────
     if (cache.imageDataURL) {
       const imgEl = new Image();
@@ -960,9 +1035,8 @@ async function renderThumbnail(pageObj, thumbWidth = 164) {
   }
 }
 
-// ── Append Card ────────────────────────────────────────────────────────────
-function appendCard(pageObj) {
-  const grid     = document.getElementById('page-grid');
+// ── Build / Append Card ────────────────────────────────────────────────────
+function buildCard(pageObj) {
   const card     = document.createElement('div');
   card.className = 'page-card';
   card.dataset.id = String(pageObj.id);
@@ -986,6 +1060,8 @@ function appendCard(pageObj) {
       </div>
     </div>
     <div class="card-actions">
+      <button class="action-btn btn-duplicate" title="Duplicate page"
+        onclick="event.stopPropagation(); duplicatePage(${pageObj.id})">⧉</button>
       <button class="action-btn btn-delete" title="Delete page"
         onclick="event.stopPropagation(); deletePage(${pageObj.id})"><svg width="11" height="12" viewBox="0 0 11 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h9"/><path d="M3.5 3V1.5h4V3"/><path d="M2 3l.7 7.5h6.6L10 3"/></svg></button>
     </div>
@@ -1023,8 +1099,34 @@ function appendCard(pageObj) {
     pendingDragStart    = { x: e.clientX, y: e.clientY };
   });
 
+  // ── Duplicate-hover ghost ──────────────────────────────────────────────
+  const dupBtn = card.querySelector('.btn-duplicate');
+  dupBtn.addEventListener('mouseenter', () => {
+    document.getElementById('dup-ghost')?.remove();
+    const ghost = document.createElement('div');
+    ghost.className = 'page-card-ghost';
+    ghost.id = 'dup-ghost';
+    ghost.style.height = card.offsetHeight + 'px';
+    ghost.textContent = '⧉';
+    const grid = document.getElementById('page-grid');
+    if (card.nextSibling) grid.insertBefore(ghost, card.nextSibling);
+    else grid.appendChild(ghost);
+    requestAnimationFrame(() => ghost.classList.add('ghost-visible'));
+  });
+  dupBtn.addEventListener('mouseleave', () => {
+    const ghost = document.getElementById('dup-ghost');
+    if (!ghost) return;
+    ghost.classList.remove('ghost-visible');
+    setTimeout(() => ghost.remove(), 180);
+  });
+
   card.style.width = '164px';
-  grid.appendChild(card);
+  return card;
+}
+
+function appendCard(pageObj) {
+  const grid = document.getElementById('page-grid');
+  grid.appendChild(buildCard(pageObj));
 }
 
 // ── Delete Page ────────────────────────────────────────────────────────────
@@ -1069,15 +1171,59 @@ async function flipPage(id) {
   await renderThumbnail(pageObj);
 }
 
+async function duplicatePage(id) {
+  document.getElementById('dup-ghost')?.remove();
+  const idx = pages.findIndex(p => p.id === id);
+  if (idx === -1) return;
+  const src = pages[idx];
+  const copy = { ...src, id: pageIdCounter++ };
+  pages.splice(idx + 1, 0, copy);
+  const grid = document.getElementById('page-grid');
+  const srcCard = document.querySelector(`.page-card[data-id="${id}"]`);
+  const newCard = buildCard(copy);
+  if (srcCard && srcCard.nextSibling) grid.insertBefore(newCard, srcCard.nextSibling);
+  else grid.appendChild(newCard);
+  updateHeader();
+  updatePageNumbers();
+  await renderThumbnail(copy);
+}
+
+async function lbDuplicateCurrent() {
+  await duplicatePage(pages[lbIdx].id);
+}
+
+async function addBlankPage() {
+  const formats = { letter: [612, 792], a4: [595, 842], legal: [612, 1008], tabloid: [792, 1224] };
+  const fmt = document.getElementById('blank-format').value;
+  const [pw, ph] = formats[fmt] ?? formats.letter;
+  const label = document.getElementById('blank-format').selectedOptions[0].text;
+  const { PDFDocument } = PDFLib;
+  const blankDoc = await PDFDocument.create();
+  blankDoc.addPage([pw, ph]);
+  const fileId = fileIdCounter++;
+  pdfCache.set(fileId, { pdfLibDoc: blankDoc, pdfJsDoc: null, fileName: `Blank Page (${label})`, isBlank: true, pageWidth: pw, pageHeight: ph });
+  const pageObj = { id: pageIdCounter++, fileId, fileName: `Blank Page (${label})`, pageIndex: 0, rotation: 0, flipH: false };
+  pages.push(pageObj);
+  showGridView();
+  appendCard(pageObj);
+  updateHeader();
+  await renderThumbnail(pageObj);
+}
+
 async function lbFlipCurrent() {
   await flipPage(pages[lbIdx].id);
   lbFillAll();
 }
 
 // ── Export PDF ─────────────────────────────────────────────────────────────
-async function exportPDF() {
-  if (!pages.length) { showToast('No pages to export!'); return; }
-  const btn = document.getElementById('export-btn');
+async function exportPDF(idList = null) {
+  const exportPages = idList
+    ? pages.filter(p => idList.includes(p.id))
+    : pages;
+  if (!exportPages.length) { showToast('No pages to export!'); return; }
+
+  const isSelection = !!idList;
+  const btn = document.getElementById(isSelection ? 'export-sel-btn' : 'export-btn');
   btn.disabled    = true;
   btn.textContent = '⏳ Exporting…';
   try {
@@ -1085,12 +1231,12 @@ async function exportPDF() {
     const newDoc = await PDFDocument.create();
 
     const fileGroups = new Map();
-    pages.forEach((p, idx) => {
+    exportPages.forEach((p, idx) => {
       if (!fileGroups.has(p.fileId)) fileGroups.set(p.fileId, []);
       fileGroups.get(p.fileId).push({ pageIndex: p.pageIndex, outputIdx: idx, rotation: p.rotation, flipH: p.flipH });
     });
 
-    const copiedPages = new Array(pages.length);
+    const copiedPages = new Array(exportPages.length);
     for (const [fileId, entries] of fileGroups) {
       const { pdfLibDoc } = pdfCache.get(fileId);
       const copied = await newDoc.copyPages(pdfLibDoc, entries.map(e => e.pageIndex));
@@ -1113,16 +1259,16 @@ async function exportPDF() {
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
-    a.href = url; a.download = 'pdf-jockey-output.pdf';
+    a.href = url; a.download = `output-${++exportCount}.pdf`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 2000);
-    showToast(`✓ Exported ${pages.length} pages`);
+    showToast(`✓ Exported ${exportPages.length} page${exportPages.length === 1 ? '' : 's'}`);
   } catch (e) {
     console.error(e);
     showToast('Export failed — check console for details');
   } finally {
     btn.disabled    = false;
-    btn.textContent = '⬇ Save PDF';
+    btn.textContent = isSelection ? '⬇ Export Selection' : '⬇ Save PDF';
   }
 }
 
@@ -1130,8 +1276,9 @@ async function exportPDF() {
 function showGridView() {
   document.getElementById('drop-zone').style.display = 'none';
   document.getElementById('grid-view').style.display = 'block';
-  document.getElementById('add-btn').style.display   = '';
-  document.getElementById('export-btn').style.display = '';
+  document.getElementById('add-btn').style.display    = '';
+  document.getElementById('blank-group').classList.add('visible');
+document.getElementById('export-btn').style.display = '';
   checkEmpty();
 }
 
@@ -1210,6 +1357,16 @@ async function lbRenderToCanvas(pageObj, slotW, slotH) {
   try {
     const canvas = document.createElement('canvas');
     const ctx    = canvas.getContext('2d');
+    if (cache.isBlank) {
+      const rot = pageObj.rotation, swap = rot === 90 || rot === 270;
+      const pw = cache.pageWidth, ph = cache.pageHeight;
+      const sc = Math.min(slotW / (swap ? ph : pw), slotH / (swap ? pw : ph));
+      canvas.width  = swap ? Math.round(ph * sc) : Math.round(pw * sc);
+      canvas.height = swap ? Math.round(pw * sc) : Math.round(ph * sc);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      return canvas;
+    }
     if (cache.imageDataURL) {
       const img = new Image();
       await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = cache.imageDataURL; });
