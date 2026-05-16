@@ -16,6 +16,9 @@ Open `pdf-jockey.html` in any modern browser. No install, no account, no server.
   - Navigate by clicking the peek strips on either side, or with arrow keys
   - Rotate and delete the current page from inside the lightbox (hover to reveal)
   - Consistent scale: portrait and landscape pages appear at the same size
+  - **Zoom** — scroll to zoom up to 4×, or click ⊕ to jump to 2×; drag to pan; tap to reset
+    - Re-renders at full resolution in the background while you zoom
+    - Zoom mode shows corner bracket + vignette indicator
 - **Export** — downloads a single merged PDF with all reorders and rotations applied
 
 ## Usage
@@ -44,6 +47,7 @@ All dependencies load from CDN — no build step, no `node_modules`.
 | Click peek strip | Navigate to adjacent page |
 | ←/→ arrow keys | Navigate lightbox |
 | Esc | Close lightbox / cancel drag |
+| Scroll wheel (lightbox) | Zoom in / out |
 | Cmd/Ctrl+A | Select all pages |
 | Delete / Backspace | Delete selected pages |
 | Cmd/Ctrl+Shift+E | Export PDF |
