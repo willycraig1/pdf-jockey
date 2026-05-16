@@ -11,10 +11,10 @@ Open `pdf-jockey.html` in any modern browser. No install, no account, no server.
 - **Drop PDFs, JPGs, or PNGs** — every page renders as a thumbnail in a scrollable grid
 - **Drag to reorder** — drag individual pages or multi-select and drag the group
 - **Multi-select** — click to toggle, Shift+click for ranges, Cmd+A to select all
-- **Per-page controls** — delete (🗑), rotate left (↺), rotate right (↻) on hover; hovering delete highlights the card red as a visual warning
+- **Per-page controls** — delete (🗑), rotate left (↺), flip horizontal (↔), rotate right (↻) on hover; hovering delete highlights the card red as a visual warning
 - **Lightbox preview** — click the Preview button or double-click any thumbnail to open a full-screen carousel
   - Navigate by clicking the peek strips on either side, or with arrow keys
-  - Rotate and delete the current page from inside the lightbox (hover to reveal); hovering delete shows a red vignette and border on the page
+  - Rotate, flip, and delete the current page from inside the lightbox (hover to reveal); hovering delete shows a red vignette and border on the page
   - Consistent scale: portrait and landscape pages appear at the same size
   - **Zoom** — scroll to zoom up to 4×, or click ⊕ to jump to 2×; drag to pan; tap to reset
     - Re-renders at full resolution in the background while you zoom
