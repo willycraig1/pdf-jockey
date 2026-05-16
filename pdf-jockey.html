@@ -1381,7 +1381,6 @@ function lbApplyTransform() {
 function lbClampPan() {
   const cv = lbCurrCanvas();
   if (!cv) return;
-  // Visual canvas size in CSS px at current zoom
   const vw = cv.width  * lbZoom / lbBaseZoom;
   const vh = cv.height * lbZoom / lbBaseZoom;
   const maxX = Math.max(0, (vw - lbSlotW) / 2);
@@ -1392,19 +1391,16 @@ function lbClampPan() {
 
 function lbSyncZoomUI() {
   const zoomed = lbZoom > 1.001;
-  const panel    = document.getElementById('lb-panel');
-  const currSlot = document.getElementById('lb-slot-curr');
-  panel.classList.toggle('lb-zoomed', zoomed);
-  currSlot.style.cursor = zoomed ? (lbIsDragging ? 'grabbing' : 'grab') : '';
-  const badge = document.getElementById('lb-zoom-badge');
+  lbPanel.classList.toggle('lb-zoomed', zoomed);
+  lbCurrSlot.style.cursor = zoomed ? (lbIsDragging ? 'grabbing' : 'grab') : '';
   if (zoomed) {
-    badge.textContent = (Math.round(lbZoom * 10) / 10) + '×';
-    badge.classList.add('visible');
+    lbBadge.textContent = (Math.round(lbZoom * 10) / 10) + '×';
+    lbBadge.classList.add('visible');
     clearTimeout(lbZoomBadgeTimer);
-    lbZoomBadgeTimer = setTimeout(() => badge.classList.remove('visible'), 1800);
+    lbZoomBadgeTimer = setTimeout(() => lbBadge.classList.remove('visible'), 1800);
   } else {
     clearTimeout(lbZoomBadgeTimer);
-    badge.classList.remove('visible');
+    lbBadge.classList.remove('visible');
   }
 }
 
@@ -1415,15 +1411,13 @@ async function lbRenderZoomed() {
   const w = Math.round(lbSlotW * targetZoom);
   const h = Math.round(lbSlotH * targetZoom);
   const canvas = await lbRenderToCanvas(pageObj, w, h);
-  if (!canvas || lbZoom !== targetZoom) return; // zoom changed while rendering
-  const currSlot = document.getElementById('lb-slot-curr');
-  if (!currSlot.isConnected) return;
+  if (!canvas || lbZoom !== targetZoom) return;
+  if (!lbCurrSlot.isConnected) return;
   lbBaseZoom = targetZoom;
-  const wrap = lbWrapCanvas(canvas);
-  if (lbPanX || lbPanY) wrap.style.transform = `translate(${lbPanX}px, ${lbPanY}px)`;
-  currSlot.innerHTML = '';
-  currSlot.classList.remove('lb-empty');
-  currSlot.appendChild(wrap);
+  lbCurrSlot.innerHTML = '';
+  lbCurrSlot.classList.remove('lb-empty');
+  lbCurrSlot.appendChild(lbWrapCanvas(canvas));
+  lbApplyTransform();
 }
 
 function lbZoomEnter() {
@@ -1445,8 +1439,10 @@ function lbZoomReset() {
   lbSyncZoomUI();
 }
 
-// Wheel: zoom in/out on current slot
 const lbCurrSlot = document.getElementById('lb-slot-curr');
+const lbPanel    = document.getElementById('lb-panel');
+const lbBadge    = document.getElementById('lb-zoom-badge');
+
 lbCurrSlot.addEventListener('wheel', e => {
   e.preventDefault();
   const delta  = e.deltaMode === 0 ? e.deltaY : e.deltaY * 15;
@@ -1460,7 +1456,6 @@ lbCurrSlot.addEventListener('wheel', e => {
   lbZoomTimer = setTimeout(lbRenderZoomed, 400);
 }, { passive: false });
 
-// Drag: pan when zoomed
 lbCurrSlot.addEventListener('pointerdown', e => {
   if (lbZoom <= 1.001 || e.button !== 0) return;
   e.stopPropagation();
