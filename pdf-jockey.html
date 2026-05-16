@@ -466,10 +466,10 @@
         <div class="lb-ctl-rotate">
           <button class="lb-ctl-pill" title="Rotate left"
             onclick="event.stopPropagation(); lbRotateCurrent(-90)">↺</button>
-          <button class="lb-ctl-pill" title="Rotate right"
-            onclick="event.stopPropagation(); lbRotateCurrent(90)">↻</button>
           <button class="lb-ctl-pill" title="Flip horizontal"
             onclick="event.stopPropagation(); lbFlipCurrent()">↔</button>
+          <button class="lb-ctl-pill" title="Rotate right"
+            onclick="event.stopPropagation(); lbRotateCurrent(90)">↻</button>
         </div>
       </div>
     </div>
@@ -992,10 +992,10 @@ function appendCard(pageObj) {
     <div class="rotate-btns">
       <button class="rotate-pill" title="Rotate left"
         onclick="event.stopPropagation(); rotatePage(${pageObj.id}, -90)">↺</button>
-      <button class="rotate-pill" title="Rotate right"
-        onclick="event.stopPropagation(); rotatePage(${pageObj.id}, 90)">↻</button>
       <button class="rotate-pill" title="Flip horizontal"
         onclick="event.stopPropagation(); flipPage(${pageObj.id})">↔</button>
+      <button class="rotate-pill" title="Rotate right"
+        onclick="event.stopPropagation(); rotatePage(${pageObj.id}, 90)">↻</button>
     </div>`;
 
   // ── Click → selection ──────────────────────────────────────────────────
