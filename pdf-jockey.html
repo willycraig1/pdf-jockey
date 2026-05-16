@@ -293,13 +293,17 @@
       opacity: 0; transition: opacity .15s; pointer-events: none;
     }
     #lb-panel:hover #lb-controls { opacity: 1; pointer-events: auto; }
-    .lb-ctl-delete {
-      position: absolute; top: 12px; right: 12px;
+    .lb-ctl-zoom, .lb-ctl-delete {
+      position: absolute; top: 12px;
       width: 28px; height: 28px; border-radius: 50%; border: none;
-      background: #ef4444; color: white; font-size: 14px; font-weight: bold;
+      color: white; font-size: 15px; font-weight: bold;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       box-shadow: 0 2px 8px rgba(0,0,0,.4); transition: background .1s, transform .1s;
+      backdrop-filter: blur(4px);
     }
+    .lb-ctl-zoom   { left: 12px;  background: rgba(15,23,42,.72); }
+    .lb-ctl-delete { right: 12px; background: #ef4444; }
+    .lb-ctl-zoom:hover   { background: rgba(15,23,42,.9);  transform: scale(1.1); }
     .lb-ctl-delete:hover { background: #dc2626; transform: scale(1.1); }
     .lb-ctl-rotate {
       position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
@@ -311,6 +315,16 @@
       backdrop-filter: blur(4px); transition: background .1s;
     }
     .lb-ctl-pill:hover { background: rgba(15,23,42,.9); }
+    /* zoom badge */
+    #lb-zoom-badge {
+      position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+      background: rgba(15,23,42,.72); color: #fff;
+      font-size: 12px; padding: 4px 10px; border-radius: 12px;
+      backdrop-filter: blur(4px); letter-spacing: .3px;
+      opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 22;
+    }
+    #lb-zoom-badge.visible { opacity: 1; }
+    #lb-panel.lb-zoomed #lb-controls { opacity: 0 !important; pointer-events: none !important; }
     .lb-slot {
       flex-shrink: 0;
       background: transparent; border-radius: 3px;
@@ -318,6 +332,26 @@
       overflow: hidden;
     }
     .lb-slot canvas { display: block; border-radius: 3px; box-shadow: 0 0 48px rgba(0,0,0,.5); }
+    .lb-canvas-wrap { position: relative; flex-shrink: 0; }
+    #lb-brackets {
+      position: absolute; top: 0; pointer-events: none; z-index: 21;
+      box-shadow: inset 0 0 0 0 transparent;
+      transition: box-shadow .3s;
+    }
+    #lb-panel.lb-zoomed #lb-brackets {
+      box-shadow: inset 0 0 60px 16px rgba(0,0,0,.38);
+    }
+    .lb-bracket {
+      position: absolute; width: 20px; height: 20px;
+      border: 2.5px solid rgba(255,255,255,.85);
+      filter: drop-shadow(0 0 4px rgba(0,0,0,.7));
+      opacity: 0; transition: opacity .3s; pointer-events: none;
+    }
+    .lb-bracket.tl { top: 10px; left: 10px; border-right: none; border-bottom: none; border-radius: 3px 0 0 0; }
+    .lb-bracket.tr { top: 10px; right: 10px; border-left: none; border-bottom: none; border-radius: 0 3px 0 0; }
+    .lb-bracket.bl { bottom: 10px; left: 10px; border-right: none; border-top: none; border-radius: 0 0 0 3px; }
+    .lb-bracket.br { bottom: 10px; right: 10px; border-left: none; border-top: none; border-radius: 0 0 3px 0; }
+    #lb-panel.lb-zoomed .lb-bracket { opacity: 1; }
     .lb-slot.lb-empty { }
     .lb-spinner {
       width: 32px; height: 32px; margin: 48px;
@@ -405,7 +439,16 @@
         <div class="lb-slot" id="lb-slot-curr"></div>
         <div class="lb-slot" id="lb-slot-next"></div>
       </div>
+      <div id="lb-zoom-badge"></div>
+      <div id="lb-brackets">
+        <div class="lb-bracket tl"></div>
+        <div class="lb-bracket tr"></div>
+        <div class="lb-bracket bl"></div>
+        <div class="lb-bracket br"></div>
+      </div>
       <div id="lb-controls">
+        <button class="lb-ctl-zoom" title="Zoom in (scroll to adjust, tap to reset)"
+          onclick="event.stopPropagation(); lbZoomEnter()">⊕</button>
         <button class="lb-ctl-delete" title="Delete page"
           onclick="event.stopPropagation(); lbDeleteCurrent()">×</button>
         <div class="lb-ctl-rotate">
@@ -1080,6 +1123,9 @@ function updateHeader() {
 // ── Lightbox ───────────────────────────────────────────────────────────────
 const LB_PEEK = 120, LB_GAP = 20;
 let lbIdx = 0, lbSlotW = 0, lbSlotH = 0, lbNavigating = false;
+let lbZoom = 1, lbBaseZoom = 1, lbPanX = 0, lbPanY = 0;
+let lbZoomTimer = null, lbZoomBadgeTimer = null;
+let lbIsDragging = false, lbDragLast = null, lbDidDrag = false;
 
 // Pre-render cache: pageId → { canvas, ratio, slotW, slotH }
 const lbPageCache   = new Map();
@@ -1172,6 +1218,10 @@ function lbInitLayout(slotW, slotH) {
   ctl.style.left   = LB_PEEK + 'px';
   ctl.style.width  = lbSlotW + 'px';
   ctl.style.height = lbSlotH + 'px';
+  const brk = document.getElementById('lb-brackets');
+  brk.style.left   = LB_PEEK + 'px';
+  brk.style.width  = lbSlotW + 'px';
+  brk.style.height = lbSlotH + 'px';
 }
 
 function lbBuildDots() {
@@ -1206,7 +1256,7 @@ async function lbRenderSlot(slotEl, pageIdx) {
   const canvas = await lbRenderToCanvas(pages[pageIdx], lbSlotW, lbSlotH);
   if (!slotEl.isConnected) return;
   slotEl.innerHTML = '';
-  if (canvas) slotEl.appendChild(canvas);
+  if (canvas) slotEl.appendChild(lbWrapCanvas(canvas));
   else slotEl.innerHTML = '<div style="padding:48px;font-size:13px;color:#94a3b8">Preview unavailable</div>';
 }
 
@@ -1218,7 +1268,7 @@ function lbPlaceCached(slotEl, cached) {
   copy.width  = cached.canvas.width;
   copy.height = cached.canvas.height;
   copy.getContext('2d').drawImage(cached.canvas, 0, 0);
-  slotEl.appendChild(copy);
+  slotEl.appendChild(lbWrapCanvas(copy));
 }
 
 function lbFillAll() {
@@ -1255,6 +1305,7 @@ async function lbNavigate(dir) {
   await new Promise(r => track.addEventListener('transitionend', r, { once: true }));
 
   lbIdx = newIdx;
+  lbZoomReset();
   // Slot dims are fixed — just snap the track back to center, no layout change
   track.style.transition = 'none';
   track.style.transform  = `translateX(${-(lbSlotW + LB_GAP - LB_PEEK)}px)`;
@@ -1287,6 +1338,7 @@ async function openLightbox(pageId) {
 function closeLightbox() {
   document.getElementById('lightbox').classList.remove('open');
   lbNavigating = false;
+  lbZoomReset();
 }
 
 function lbDeleteCurrent() {
@@ -1305,17 +1357,149 @@ async function lbRotateCurrent(deg) {
   lbFillAll();
 }
 
+// ── Lightbox zoom ───────────────────────────────────────────────────────────
+function lbWrapCanvas(canvas) {
+  const wrap = document.createElement('div');
+  wrap.className = 'lb-canvas-wrap';
+  wrap.style.width  = (canvas.style.width  || canvas.width  + 'px');
+  wrap.style.height = (canvas.style.height || canvas.height + 'px');
+  wrap.appendChild(canvas);
+  return wrap;
+}
+
+function lbCurrCanvas() { return document.querySelector('#lb-slot-curr canvas'); }
+function lbCurrWrap()   { return document.querySelector('#lb-slot-curr .lb-canvas-wrap'); }
+
+function lbApplyTransform() {
+  const wrap = lbCurrWrap();
+  if (!wrap) return;
+  const scale = lbZoom / lbBaseZoom;
+  wrap.style.transform = (scale !== 1 || lbPanX || lbPanY)
+    ? `translate(${lbPanX}px, ${lbPanY}px) scale(${scale})` : '';
+}
+
+function lbClampPan() {
+  const cv = lbCurrCanvas();
+  if (!cv) return;
+  // Visual canvas size in CSS px at current zoom
+  const vw = cv.width  * lbZoom / lbBaseZoom;
+  const vh = cv.height * lbZoom / lbBaseZoom;
+  const maxX = Math.max(0, (vw - lbSlotW) / 2);
+  const maxY = Math.max(0, (vh - lbSlotH) / 2);
+  lbPanX = Math.max(-maxX, Math.min(maxX, lbPanX));
+  lbPanY = Math.max(-maxY, Math.min(maxY, lbPanY));
+}
+
+function lbSyncZoomUI() {
+  const zoomed = lbZoom > 1.001;
+  const panel    = document.getElementById('lb-panel');
+  const currSlot = document.getElementById('lb-slot-curr');
+  panel.classList.toggle('lb-zoomed', zoomed);
+  currSlot.style.cursor = zoomed ? (lbIsDragging ? 'grabbing' : 'grab') : '';
+  const badge = document.getElementById('lb-zoom-badge');
+  if (zoomed) {
+    badge.textContent = (Math.round(lbZoom * 10) / 10) + '×';
+    badge.classList.add('visible');
+    clearTimeout(lbZoomBadgeTimer);
+    lbZoomBadgeTimer = setTimeout(() => badge.classList.remove('visible'), 1800);
+  } else {
+    clearTimeout(lbZoomBadgeTimer);
+    badge.classList.remove('visible');
+  }
+}
+
+async function lbRenderZoomed() {
+  if (lbZoom <= 1.001) return;
+  const targetZoom = lbZoom;
+  const pageObj    = pages[lbIdx];
+  const w = Math.round(lbSlotW * targetZoom);
+  const h = Math.round(lbSlotH * targetZoom);
+  const canvas = await lbRenderToCanvas(pageObj, w, h);
+  if (!canvas || lbZoom !== targetZoom) return; // zoom changed while rendering
+  const currSlot = document.getElementById('lb-slot-curr');
+  if (!currSlot.isConnected) return;
+  lbBaseZoom = targetZoom;
+  const wrap = lbWrapCanvas(canvas);
+  if (lbPanX || lbPanY) wrap.style.transform = `translate(${lbPanX}px, ${lbPanY}px)`;
+  currSlot.innerHTML = '';
+  currSlot.classList.remove('lb-empty');
+  currSlot.appendChild(wrap);
+}
+
+function lbZoomEnter() {
+  lbZoom = 2;
+  lbClampPan();
+  lbApplyTransform();
+  lbSyncZoomUI();
+  clearTimeout(lbZoomTimer);
+  lbZoomTimer = setTimeout(lbRenderZoomed, 400);
+}
+
+function lbZoomReset() {
+  lbZoom = 1; lbBaseZoom = 1; lbPanX = 0; lbPanY = 0;
+  lbIsDragging = false;
+  clearTimeout(lbZoomTimer);
+  clearTimeout(lbZoomBadgeTimer);
+  const wrap = lbCurrWrap();
+  if (wrap) wrap.style.transform = '';
+  lbSyncZoomUI();
+}
+
+// Wheel: zoom in/out on current slot
+const lbCurrSlot = document.getElementById('lb-slot-curr');
+lbCurrSlot.addEventListener('wheel', e => {
+  e.preventDefault();
+  const delta  = e.deltaMode === 0 ? e.deltaY : e.deltaY * 15;
+  const factor = Math.pow(1.0015, -delta);
+  lbZoom = Math.min(4, Math.max(1, lbZoom * factor));
+  if (lbZoom < 1.001) { lbZoom = 1; lbPanX = 0; lbPanY = 0; }
+  lbClampPan();
+  lbApplyTransform();
+  lbSyncZoomUI();
+  clearTimeout(lbZoomTimer);
+  lbZoomTimer = setTimeout(lbRenderZoomed, 400);
+}, { passive: false });
+
+// Drag: pan when zoomed
+lbCurrSlot.addEventListener('pointerdown', e => {
+  if (lbZoom <= 1.001 || e.button !== 0) return;
+  e.stopPropagation();
+  lbIsDragging = true; lbDidDrag = false;
+  lbDragLast = { x: e.clientX, y: e.clientY };
+  lbCurrSlot.setPointerCapture(e.pointerId);
+  lbSyncZoomUI();
+});
+lbCurrSlot.addEventListener('pointermove', e => {
+  if (!lbIsDragging) return;
+  const dx = e.clientX - lbDragLast.x;
+  const dy = e.clientY - lbDragLast.y;
+  if (Math.abs(dx) > 2 || Math.abs(dy) > 2) lbDidDrag = true;
+  lbPanX += dx; lbPanY += dy;
+  lbDragLast = { x: e.clientX, y: e.clientY };
+  lbClampPan();
+  lbApplyTransform();
+});
+lbCurrSlot.addEventListener('pointerup', () => {
+  if (!lbIsDragging) return;
+  lbIsDragging = false;
+  if (!lbDidDrag) { lbZoomReset(); lbFillAll(); } // tap to reset zoom
+  lbSyncZoomUI();
+});
+lbCurrSlot.addEventListener('pointercancel', () => { lbIsDragging = false; lbSyncZoomUI(); });
+
 document.getElementById('lb-prev-btn').addEventListener('click', () => lbNavigate(-1));
 document.getElementById('lb-next-btn').addEventListener('click', () => lbNavigate(1));
 document.getElementById('lb-backdrop').addEventListener('click', closeLightbox);
 
 const lbViewport = document.getElementById('lb-viewport');
 lbViewport.addEventListener('click', e => {
+  if (lbZoom > 1.001) return;
   const x = e.clientX - lbViewport.getBoundingClientRect().left;
   if (x < LB_PEEK) lbNavigate(-1);
   else if (x > LB_PEEK + lbSlotW) lbNavigate(1);
 });
 lbViewport.addEventListener('mousemove', e => {
+  if (lbZoom > 1.001) { lbViewport.style.cursor = ''; return; }
   const x = e.clientX - lbViewport.getBoundingClientRect().left;
   lbViewport.style.cursor = (x < LB_PEEK || x > LB_PEEK + lbSlotW) ? 'pointer' : '';
 });
