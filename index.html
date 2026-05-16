@@ -265,8 +265,10 @@
     .sel-btn { border: none; border-radius: 8px; padding: 6px 13px; font-size: 12px; font-weight: 600; cursor: pointer; transition: background .15s; }
     .sel-btn-delete { background: #ef4444; color: #fff; }
     .sel-btn-delete:hover { background: #dc2626; }
-    .sel-btn-clear { background: rgba(255,255,255,.1); color: #cbd5e1; }
-    .sel-btn-clear:hover { background: rgba(255,255,255,.18); }
+    .sel-btn-action { background: rgba(255,255,255,.1); color: #f1f5f9; }
+    .sel-btn-action:hover { background: rgba(255,255,255,.18); }
+    .sel-btn-clear { background: transparent; color: #94a3b8; }
+    .sel-btn-clear:hover { background: rgba(255,255,255,.08); }
 
     /* ── Custom multi-drag: floating thumbnail ghost ── */
     #drag-ghost {
@@ -468,6 +470,8 @@
 <div id="grid-view">
   <div id="grid-toolbar">
     <span class="toolbar-label">Drag to reorder · Ctrl/⌘+click or Shift+click to select · Double-click to preview · Hover for controls</span>
+    <button class="btn btn-ghost" id="select-all-btn" style="display:none; font-size:12px; padding:5px 10px"
+      onclick="selectAll()">Select All</button>
   </div>
   <div id="page-grid"></div>
   <div id="empty-message">
@@ -481,6 +485,11 @@
   <span class="sel-label">Selected</span>
   <span class="sel-count" id="sel-count">0</span>
   <span class="sel-label">page(s)</span>
+  <div class="sel-divider"></div>
+  <button class="sel-btn sel-btn-action" onclick="rotateSelected(-90)" title="Rotate left">↺</button>
+  <button class="sel-btn sel-btn-action" onclick="flipSelected()" title="Flip horizontal">↔</button>
+  <button class="sel-btn sel-btn-action" onclick="rotateSelected(90)" title="Rotate right">↻</button>
+  <button class="sel-btn sel-btn-action" onclick="duplicateSelected()" title="Duplicate">⧉</button>
   <div class="sel-divider"></div>
   <button class="sel-btn sel-btn-delete" onclick="deleteSelected()">Delete</button>
   <button class="sel-btn sel-btn-clear" onclick="clearSelection()">Clear</button>
@@ -601,6 +610,39 @@ function clearSelection() {
   updateSelectionBar();
 }
 
+function selectAll() {
+  pages.forEach(p => selectedIds.add(p.id));
+  lastClickedPageId = pages.length ? pages[pages.length - 1].id : null;
+  updateSelectionVisuals();
+  updateSelectionBar();
+}
+
+async function rotateSelected(deg) {
+  await Promise.all([...selectedIds].map(id => rotatePage(id, deg)));
+}
+
+async function flipSelected() {
+  await Promise.all([...selectedIds].map(id => flipPage(id)));
+}
+
+async function duplicateSelected() {
+  const selectedPages = pages.filter(p => selectedIds.has(p.id));
+  if (!selectedPages.length) return;
+  const copies = selectedPages.map(src => ({ ...src, id: pageIdCounter++ }));
+  const lastId = selectedPages[selectedPages.length - 1].id;
+  const lastIdx = pages.findIndex(p => p.id === lastId);
+  pages.splice(lastIdx + 1, 0, ...copies);
+  const grid = document.getElementById('page-grid');
+  const lastCard = document.querySelector(`.page-card[data-id="${lastId}"]`);
+  const fragment = document.createDocumentFragment();
+  copies.forEach(copy => fragment.appendChild(buildCard(copy)));
+  if (lastCard && lastCard.nextSibling) grid.insertBefore(fragment, lastCard.nextSibling);
+  else grid.appendChild(fragment);
+  updateHeader();
+  updatePageNumbers();
+  await Promise.all(copies.map(copy => renderThumbnail(copy)));
+}
+
 function deleteSelected() {
   if (!selectedIds.size) return;
   const n   = selectedIds.size;
@@ -634,7 +676,13 @@ function updateSelectionBar() {
   const countEl = document.getElementById('sel-count');
   const label  = document.querySelector('.toolbar-label');
   const selBtn = document.getElementById('export-sel-btn');
+  const selAllBtn = document.getElementById('select-all-btn');
   const n = selectedIds.size;
+  const allSelected = pages.length > 0 && n === pages.length;
+  if (selAllBtn) {
+    selAllBtn.textContent = allSelected ? 'Deselect All' : 'Select All';
+    selAllBtn.onclick = allSelected ? clearSelection : selectAll;
+  }
   if (n > 0) {
     countEl.textContent = n;
     bar.classList.add('visible');
@@ -1061,17 +1109,17 @@ function buildCard(pageObj) {
     </div>
     <div class="card-actions">
       <button class="action-btn btn-duplicate" title="Duplicate page"
-        onclick="event.stopPropagation(); duplicatePage(${pageObj.id})">⧉</button>
+        onclick="event.stopPropagation(); selectedIds.has(${pageObj.id})&&selectedIds.size>1?duplicateSelected():duplicatePage(${pageObj.id})">⧉</button>
       <button class="action-btn btn-delete" title="Delete page"
         onclick="event.stopPropagation(); deletePage(${pageObj.id})"><svg width="11" height="12" viewBox="0 0 11 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h9"/><path d="M3.5 3V1.5h4V3"/><path d="M2 3l.7 7.5h6.6L10 3"/></svg></button>
     </div>
     <div class="rotate-btns">
       <button class="rotate-pill" title="Rotate left"
-        onclick="event.stopPropagation(); rotatePage(${pageObj.id}, -90)">↺</button>
+        onclick="event.stopPropagation(); selectedIds.has(${pageObj.id})&&selectedIds.size>1?rotateSelected(-90):rotatePage(${pageObj.id},-90)">↺</button>
       <button class="rotate-pill" title="Flip horizontal"
-        onclick="event.stopPropagation(); flipPage(${pageObj.id})">↔</button>
+        onclick="event.stopPropagation(); selectedIds.has(${pageObj.id})&&selectedIds.size>1?flipSelected():flipPage(${pageObj.id})">↔</button>
       <button class="rotate-pill" title="Rotate right"
-        onclick="event.stopPropagation(); rotatePage(${pageObj.id}, 90)">↻</button>
+        onclick="event.stopPropagation(); selectedIds.has(${pageObj.id})&&selectedIds.size>1?rotateSelected(90):rotatePage(${pageObj.id},90)">↻</button>
     </div>`;
 
   // ── Click → selection ──────────────────────────────────────────────────
@@ -1277,6 +1325,7 @@ function showGridView() {
   document.getElementById('drop-zone').style.display = 'none';
   document.getElementById('grid-view').style.display = 'block';
   document.getElementById('add-btn').style.display    = '';
+  document.getElementById('select-all-btn').style.display = '';
   document.getElementById('blank-group').classList.add('visible');
 document.getElementById('export-btn').style.display = '';
   checkEmpty();
@@ -1807,9 +1856,7 @@ document.addEventListener('keydown', e => {
   // Cmd/Ctrl+A → select all
   if ((e.metaKey || e.ctrlKey) && e.key === 'a' && gridVisible) {
     e.preventDefault();
-    pages.forEach(p => selectedIds.add(p.id));
-    lastClickedPageId = pages.length ? pages[pages.length - 1].id : null;
-    updateSelectionVisuals();
+    selectAll();
     updateSelectionBar();
     return;
   }
