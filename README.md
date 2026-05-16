@@ -11,23 +11,25 @@ Open `pdf-jockey.html` in any modern browser. No install, no account, no server.
 - **Drop PDFs, JPGs, or PNGs** — every page renders as a thumbnail in a scrollable grid
 - **Drag to reorder** — drag individual pages or multi-select and drag the group
 - **Multi-select** — click to toggle, Shift+click for ranges, Cmd+A to select all
-- **Per-page controls** — delete (🗑), rotate left (↺), flip horizontal (↔), rotate right (↻) on hover; hovering delete highlights the card red as a visual warning
+- **Per-page controls** — duplicate (⧉), delete (🗑), rotate left (↺), flip horizontal (↔), rotate right (↻) on hover; hovering delete highlights the card red as a visual warning; hovering duplicate shows a green ghost of the new page in the grid
 - **Lightbox preview** — click the Preview button or double-click any thumbnail to open a full-screen carousel
   - Navigate by clicking the peek strips on either side, or with arrow keys
-  - Rotate, flip, and delete the current page from inside the lightbox (hover to reveal); hovering delete shows a red vignette and border on the page
+  - Rotate, flip, duplicate, and delete the current page from inside the lightbox (hover to reveal); hovering delete shows a red vignette and border on the page
   - Consistent scale: portrait and landscape pages appear at the same size
   - **Zoom** — scroll to zoom up to 4×, or click ⊕ to jump to 2×; drag to pan; tap to reset
     - Re-renders at full resolution in the background while you zoom
     - Zoom mode shows corner bracket + vignette indicator
-- **Export** — downloads a single merged PDF with all reorders and rotations applied
+- **Blank pages** — insert a blank page in Letter, A4, Legal, or Tabloid size via the header toolbar
+- **Export** — downloads a single merged PDF (named `output-1.pdf`, `output-2.pdf`, etc.) with all reorders, rotations, and flips applied
+- **Export Selection** — when pages are selected, export just those pages as a separate PDF
 
 ## Usage
 
 1. Download `pdf-jockey.html`
 2. Open it in Chrome, Firefox, Safari, or Edge
 3. Drop your PDFs or images onto the page
-4. Reorder, rotate, and delete pages as needed
-5. Click **Save PDF**
+4. Reorder, rotate, duplicate, and delete pages as needed
+5. Click **Save PDF** (or **Export Selection** to export only selected pages)
 
 ## Tech stack
 
