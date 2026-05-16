@@ -468,6 +468,8 @@
             onclick="event.stopPropagation(); lbRotateCurrent(-90)">↺</button>
           <button class="lb-ctl-pill" title="Rotate right"
             onclick="event.stopPropagation(); lbRotateCurrent(90)">↻</button>
+          <button class="lb-ctl-pill" title="Flip horizontal"
+            onclick="event.stopPropagation(); lbFlipCurrent()">↔</button>
         </div>
       </div>
     </div>
@@ -788,7 +790,7 @@ async function loadPDFFile(file) {
 
   let count = 0;
   for (let i = 0; i < pdfJsDoc.numPages; i++) {
-    const pageObj = { id: pageIdCounter++, fileId, fileName, pageIndex: i, rotation: 0 };
+    const pageObj = { id: pageIdCounter++, fileId, fileName, pageIndex: i, rotation: 0, flipH: false };
     pages.push(pageObj);
     appendCard(pageObj);
     renderThumbnail(pageObj);
@@ -870,7 +872,7 @@ async function loadImageFile(file) {
   const fileId  = fileIdCounter++;
   pdfCache.set(fileId, { pdfLibDoc: imgPdfDoc, pdfJsDoc: null, fileName, imageDataURL });
 
-  const pageObj = { id: pageIdCounter++, fileId, fileName, pageIndex: 0, rotation: 0 };
+  const pageObj = { id: pageIdCounter++, fileId, fileName, pageIndex: 0, rotation: 0, flipH: false };
   pages.push(pageObj);
   appendCard(pageObj);
   renderThumbnail(pageObj);
@@ -878,6 +880,16 @@ async function loadImageFile(file) {
 }
 
 // ── Render Thumbnail ───────────────────────────────────────────────────────
+function flipCanvasH(src) {
+  const out = document.createElement('canvas');
+  out.width = src.width; out.height = src.height;
+  const ctx = out.getContext('2d');
+  ctx.translate(out.width, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(src, 0, 0);
+  return out;
+}
+
 async function renderThumbnail(pageObj, thumbWidth = 164) {
   try {
     const cache = pdfCache.get(pageObj.fileId);
@@ -902,6 +914,7 @@ async function renderThumbnail(pageObj, thumbWidth = 164) {
       const ctx = canvas.getContext('2d');
       ctx.translate(outW / 2, outH / 2);
       ctx.rotate(rotation * Math.PI / 180);
+      if (pageObj.flipH) ctx.scale(-1, 1);
       ctx.drawImage(imgEl, -(nw * scale) / 2, -(nh * scale) / 2, nw * scale, nh * scale);
       const dataURL = canvas.toDataURL('image/jpeg', 0.82);
       const card = document.querySelector(`.page-card[data-id="${pageObj.id}"]`);
@@ -927,7 +940,8 @@ async function renderThumbnail(pageObj, thumbWidth = 164) {
     canvas.height = Math.round(viewport.height);
     await pdfPage.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
 
-    const dataURL = canvas.toDataURL('image/jpeg', 0.82);
+    const rendered = pageObj.flipH ? flipCanvasH(canvas) : canvas;
+    const dataURL = rendered.toDataURL('image/jpeg', 0.82);
     const card    = document.querySelector(`.page-card[data-id="${pageObj.id}"]`);
     if (!card) return;
     const container = card.querySelector('.thumb-container');
@@ -980,6 +994,8 @@ function appendCard(pageObj) {
         onclick="event.stopPropagation(); rotatePage(${pageObj.id}, -90)">↺</button>
       <button class="rotate-pill" title="Rotate right"
         onclick="event.stopPropagation(); rotatePage(${pageObj.id}, 90)">↻</button>
+      <button class="rotate-pill" title="Flip horizontal"
+        onclick="event.stopPropagation(); flipPage(${pageObj.id})">↔</button>
     </div>`;
 
   // ── Click → selection ──────────────────────────────────────────────────
@@ -1045,6 +1061,19 @@ async function rotatePage(id, deg) {
   await renderThumbnail(pageObj);
 }
 
+async function flipPage(id) {
+  const pageObj = pages.find(p => p.id === id);
+  if (!pageObj) return;
+  pageObj.flipH = !pageObj.flipH;
+  lbPageCache.delete(id);
+  await renderThumbnail(pageObj);
+}
+
+async function lbFlipCurrent() {
+  await flipPage(pages[lbIdx].id);
+  lbFillAll();
+}
+
 // ── Export PDF ─────────────────────────────────────────────────────────────
 async function exportPDF() {
   if (!pages.length) { showToast('No pages to export!'); return; }
@@ -1058,7 +1087,7 @@ async function exportPDF() {
     const fileGroups = new Map();
     pages.forEach((p, idx) => {
       if (!fileGroups.has(p.fileId)) fileGroups.set(p.fileId, []);
-      fileGroups.get(p.fileId).push({ pageIndex: p.pageIndex, outputIdx: idx, rotation: p.rotation });
+      fileGroups.get(p.fileId).push({ pageIndex: p.pageIndex, outputIdx: idx, rotation: p.rotation, flipH: p.flipH });
     });
 
     const copiedPages = new Array(pages.length);
@@ -1069,6 +1098,11 @@ async function exportPDF() {
         if (entry.rotation) {
           const existing = copied[i].getRotation().angle;
           copied[i].setRotation(degrees((existing + entry.rotation) % 360));
+        }
+        if (entry.flipH) {
+          const { width } = copied[i].getSize();
+          copied[i].translateContent(width, 0);
+          copied[i].scaleContent(-1, 1);
         }
         copiedPages[entry.outputIdx] = copied[i];
       });
@@ -1187,7 +1221,9 @@ async function lbRenderToCanvas(pageObj, slotW, slotH) {
       canvas.width = outW; canvas.height = outH;
       ctx.translate(outW / 2, outH / 2);
       ctx.rotate(rot * Math.PI / 180);
+      if (pageObj.flipH) ctx.scale(-1, 1);
       ctx.drawImage(img, -(nw * sc) / 2, -(nh * sc) / 2, nw * sc, nh * sc);
+      return canvas;
     } else {
       const pdfPage = await cache.pdfJsDoc.getPage(pageObj.pageIndex + 1);
       const baseVP  = pdfPage.getViewport({ scale: 1, rotation: pageObj.rotation });
@@ -1196,8 +1232,8 @@ async function lbRenderToCanvas(pageObj, slotW, slotH) {
       canvas.width  = Math.round(vp.width);
       canvas.height = Math.round(vp.height);
       await pdfPage.render({ canvasContext: ctx, viewport: vp }).promise;
+      return pageObj.flipH ? flipCanvasH(canvas) : canvas;
     }
-    return canvas;
   } catch { return null; }
 }
 
