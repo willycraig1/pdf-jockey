@@ -299,13 +299,12 @@
     #lb-track { display: flex; will-change: transform; }
     .lb-slot {
       flex-shrink: 0;
-      background: white; border-radius: 3px;
-      box-shadow: 0 0 48px rgba(0,0,0,.5);
+      background: transparent; border-radius: 3px;
       display: flex; align-items: center; justify-content: center;
       overflow: hidden;
     }
-    .lb-slot canvas { display: block; }
-    .lb-slot.lb-empty { background: transparent; box-shadow: none; }
+    .lb-slot canvas { display: block; border-radius: 3px; box-shadow: 0 0 48px rgba(0,0,0,.5); }
+    .lb-slot.lb-empty { }
     .lb-spinner {
       width: 32px; height: 32px; margin: 48px;
       border: 3px solid rgba(0,0,0,.1); border-top-color: #c8392b;
@@ -323,13 +322,14 @@
     .lb-arrow:disabled { opacity: .28; cursor: default; }
     #lb-label { font-size: 12px; color: rgba(255,255,255,.6); white-space: nowrap; min-width: 140px; text-align: center; }
     #lb-progress-wrap {
-      height: 3px; border-radius: 2px;
-      background: rgba(255,255,255,.18); overflow: hidden;
+      display: flex; justify-content: center; align-items: center;
+      gap: 5px; overflow: hidden; flex-wrap: nowrap;
     }
-    #lb-progress-fill {
-      height: 100%; background: #c8392b; border-radius: 2px;
-      transition: width .3s ease;
+    .lb-dot {
+      width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0;
+      background: rgba(255,255,255,.25); transition: background .25s ease;
     }
+    .lb-dot.filled { background: #c8392b; }
   </style>
 </head>
 <body>
@@ -398,7 +398,7 @@
       <span id="lb-label"></span>
       <button class="lb-arrow" id="lb-next-btn" title="Next (→)">&#8250;</button>
     </div>
-    <div id="lb-progress-wrap"><div id="lb-progress-fill"></div></div>
+    <div id="lb-progress-wrap"></div>
   </div>
 </div>
 
@@ -1055,7 +1055,7 @@ function updateHeader() {
 }
 
 // ── Lightbox ───────────────────────────────────────────────────────────────
-const LB_PEEK = 80, LB_GAP = 20;
+const LB_PEEK = 120, LB_GAP = 20;
 let lbIdx = 0, lbSlotW = 0, lbSlotH = 0, lbNavigating = false;
 
 // Pre-render cache: pageId → { canvas, ratio, slotW, slotH }
@@ -1071,6 +1071,7 @@ function lbComputeSlotDims(ratio) {
   return { slotW: Math.min(slotW, maxW), slotH: Math.min(slotH, maxH) };
 }
 
+// Returns native (un-rotated) aspect ratio, used to size the fixed slot on open
 async function getPageAspectRatio(pageObj) {
   const cache = pdfCache.get(pageObj.fileId);
   if (!cache) return 0.775;
@@ -1078,11 +1079,10 @@ async function getPageAspectRatio(pageObj) {
     if (cache.imageDataURL) {
       const img = new Image();
       await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = cache.imageDataURL; });
-      const swap = pageObj.rotation === 90 || pageObj.rotation === 270;
-      return swap ? img.naturalHeight / img.naturalWidth : img.naturalWidth / img.naturalHeight;
+      return img.naturalWidth / img.naturalHeight;
     } else {
       const vp = (await cache.pdfJsDoc.getPage(pageObj.pageIndex + 1))
-                   .getViewport({ scale: 1, rotation: pageObj.rotation });
+                   .getViewport({ scale: 1, rotation: 0 });
       return vp.width / vp.height;
     }
   } catch { return 0.775; }
@@ -1127,21 +1127,17 @@ async function lbPreload(pageIdx) {
   if (lbPageCache.has(pageObj.id) || lbPagePending.has(pageObj.id)) return;
   lbPagePending.add(pageObj.id);
   try {
-    const ratio            = await getPageAspectRatio(pageObj);
-    const { slotW, slotH } = lbComputeSlotDims(ratio);
-    const canvas           = await lbRenderToCanvas(pageObj, slotW, slotH);
-    if (canvas) lbPageCache.set(pageObj.id, { canvas, ratio, slotW, slotH });
+    const canvas = await lbRenderToCanvas(pageObj, lbSlotW, lbSlotH);
+    if (canvas) lbPageCache.set(pageObj.id, { canvas, slotW: lbSlotW, slotH: lbSlotH });
   } finally {
     lbPagePending.delete(pageObj.id);
   }
 }
 
-function lbInitLayout(ratio = 0.775) {
-  const { slotW, slotH } = lbComputeSlotDims(ratio);
+function lbInitLayout(slotW, slotH) {
   lbSlotW = slotW; lbSlotH = slotH;
   const vpW = lbSlotW + 2 * LB_PEEK;
-  document.getElementById('lb-viewport').style.width      = vpW + 'px';
-  document.getElementById('lb-progress-wrap').style.width  = vpW + 'px';
+  document.getElementById('lb-viewport').style.width = vpW + 'px';
   document.querySelectorAll('.lb-slot').forEach(s => {
     s.style.width = lbSlotW + 'px'; s.style.height = lbSlotH + 'px';
   });
@@ -1151,13 +1147,25 @@ function lbInitLayout(ratio = 0.775) {
   track.style.transform  = `translateX(${-(lbSlotW + LB_GAP - LB_PEEK)}px)`;
 }
 
+function lbBuildDots() {
+  const wrap = document.getElementById('lb-progress-wrap');
+  wrap.innerHTML = '';
+  pages.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'lb-dot';
+    dot.dataset.idx = i;
+    wrap.appendChild(dot);
+  });
+}
+
 function lbUpdateMeta() {
-  const p   = pages[lbIdx];
-  const pct = pages.length > 1 ? (lbIdx / (pages.length - 1)) * 100 : 100;
-  document.getElementById('lb-label').textContent          = `${lbIdx + 1} / ${pages.length}  ·  ${p.fileName}`;
-  document.getElementById('lb-prev-btn').disabled          = lbIdx === 0;
-  document.getElementById('lb-next-btn').disabled          = lbIdx === pages.length - 1;
-  document.getElementById('lb-progress-fill').style.width  = pct + '%';
+  const p = pages[lbIdx];
+  document.getElementById('lb-label').textContent = `${lbIdx + 1} / ${pages.length}  ·  ${p.fileName}`;
+  document.getElementById('lb-prev-btn').disabled = lbIdx === 0;
+  document.getElementById('lb-next-btn').disabled = lbIdx === pages.length - 1;
+  document.querySelectorAll('#lb-progress-wrap .lb-dot').forEach(dot => {
+    dot.classList.toggle('filled', parseInt(dot.dataset.idx) <= lbIdx);
+  });
 }
 
 // Render a slot at current lbSlotW/lbSlotH (adjacent slots, or uncached curr)
@@ -1199,7 +1207,7 @@ function lbFillAll() {
     lbRenderSlot(currSlot, lbIdx).then(() => {
       const cv = currSlot.querySelector('canvas');
       if (cv && !lbPageCache.has(pageObj.id))
-        lbPageCache.set(pageObj.id, { canvas: cv, ratio: lbSlotW / lbSlotH, slotW: lbSlotW, slotH: lbSlotH });
+        lbPageCache.set(pageObj.id, { canvas: cv, slotW: lbSlotW, slotH: lbSlotH });
     });
   }
 
@@ -1220,13 +1228,12 @@ async function lbNavigate(dir) {
   await new Promise(r => track.addEventListener('transitionend', r, { once: true }));
 
   lbIdx = newIdx;
-  const cached = lbPageCache.get(pages[lbIdx].id);
-  const ratio  = cached ? cached.ratio : await getPageAspectRatio(pages[lbIdx]);
-  lbInitLayout(ratio);
+  // Slot dims are fixed — just snap the track back to center, no layout change
+  track.style.transition = 'none';
+  track.style.transform  = `translateX(${-(lbSlotW + LB_GAP - LB_PEEK)}px)`;
   lbUpdateMeta();
   lbFillAll();
 
-  // Preload neighbors in background so next navigation is instant
   lbPreload(lbIdx - 1);
   lbPreload(lbIdx + 1);
 
@@ -1238,9 +1245,12 @@ async function openLightbox(pageId) {
   if (idx === -1) return;
   lbIdx = idx;
   document.getElementById('lightbox').classList.add('open');
-  const cached = lbPageCache.get(pages[idx].id);
-  const ratio  = cached ? cached.ratio : await getPageAspectRatio(pages[idx]);
-  lbInitLayout(ratio);
+  // Square slot: side = portrait height so portrait and landscape render at the same scale.
+  // Portrait fills the height (small side gaps), landscape fills the width (small top/bottom gaps).
+  const nativeRatio      = await getPageAspectRatio(pages[idx]);
+  const { slotH }        = lbComputeSlotDims(nativeRatio);
+  lbInitLayout(slotH, slotH);
+  lbBuildDots();
   lbUpdateMeta();
   lbFillAll();
   lbPreload(idx - 1);
