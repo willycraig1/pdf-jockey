@@ -98,6 +98,10 @@
       box-shadow: 0 6px 20px rgba(61,122,69,.18);
       transform: translateY(-3px); border-color: #a8c8ad;
     }
+    .page-card:has(.btn-delete:hover) {
+      box-shadow: 0 6px 20px rgba(239,68,68,.22);
+      border-color: #fca5a5;
+    }
 
     /* ── Selected state ── */
     .page-card.selected {
@@ -146,8 +150,7 @@
     .page-card:hover .card-actions { opacity: 1; }
     .action-btn {
       width: 24px; height: 24px; border-radius: 50%; border: 2px solid #fff;
-      cursor: pointer; font-size: 12px; display: flex; align-items: center;
-      justify-content: center; font-weight: bold;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
       box-shadow: 0 2px 6px rgba(0,0,0,.2); transition: transform .1s;
     }
     .action-btn:hover { transform: scale(1.15); }
@@ -296,7 +299,7 @@
     .lb-ctl-zoom, .lb-ctl-delete {
       position: absolute; top: 12px;
       width: 28px; height: 28px; border-radius: 50%; border: none;
-      color: white; font-size: 15px; font-weight: bold;
+      color: white; font-size: 15px;
       cursor: pointer; display: flex; align-items: center; justify-content: center;
       box-shadow: 0 2px 8px rgba(0,0,0,.4); transition: background .1s, transform .1s;
       backdrop-filter: blur(4px);
@@ -333,13 +336,22 @@
     }
     .lb-slot canvas { display: block; border-radius: 3px; box-shadow: 0 0 48px rgba(0,0,0,.5); }
     .lb-canvas-wrap { position: relative; flex-shrink: 0; }
+    .lb-canvas-wrap::after {
+      content: ''; position: absolute; inset: 0; border-radius: 3px;
+      pointer-events: none; z-index: 1;
+      box-shadow: inset 0 0 0 0 transparent;
+      border: 1px solid transparent;
+      transition: box-shadow .3s, border-color .3s;
+    }
+    #lb-panel.lb-zoomed #lb-slot-curr .lb-canvas-wrap::after {
+      box-shadow: inset 0 0 60px 16px rgba(0,0,0,.38);
+    }
+    #lb-panel:has(.lb-ctl-delete:hover) #lb-slot-curr .lb-canvas-wrap::after {
+      box-shadow: inset 0 0 60px 16px rgba(239,68,68,.35);
+      border-color: #ef4444;
+    }
     #lb-brackets {
       position: absolute; top: 0; pointer-events: none; z-index: 21;
-      box-shadow: inset 0 0 0 0 transparent;
-      transition: box-shadow .3s;
-    }
-    #lb-panel.lb-zoomed #lb-brackets {
-      box-shadow: inset 0 0 60px 16px rgba(0,0,0,.38);
     }
     .lb-bracket {
       position: absolute; width: 20px; height: 20px;
@@ -450,7 +462,7 @@
         <button class="lb-ctl-zoom" title="Zoom in (scroll to adjust, tap to reset)"
           onclick="event.stopPropagation(); lbZoomEnter()">⊕</button>
         <button class="lb-ctl-delete" title="Delete page"
-          onclick="event.stopPropagation(); lbDeleteCurrent()">×</button>
+          onclick="event.stopPropagation(); lbDeleteCurrent()"><svg width="13" height="14" viewBox="0 0 13 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3.5h11"/><path d="M4.5 3.5v-2h4v2"/><path d="M2.5 3.5l.8 8.5h6.4l.8-8.5"/></svg></button>
         <div class="lb-ctl-rotate">
           <button class="lb-ctl-pill" title="Rotate left"
             onclick="event.stopPropagation(); lbRotateCurrent(-90)">↺</button>
@@ -961,7 +973,7 @@ function appendCard(pageObj) {
     </div>
     <div class="card-actions">
       <button class="action-btn btn-delete" title="Delete page"
-        onclick="event.stopPropagation(); deletePage(${pageObj.id})">×</button>
+        onclick="event.stopPropagation(); deletePage(${pageObj.id})"><svg width="11" height="12" viewBox="0 0 11 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h9"/><path d="M3.5 3V1.5h4V3"/><path d="M2 3l.7 7.5h6.6L10 3"/></svg></button>
     </div>
     <div class="rotate-btns">
       <button class="rotate-pill" title="Rotate left"
