@@ -1264,6 +1264,37 @@ async function lbFlipCurrent() {
 }
 
 // ── Export PDF ─────────────────────────────────────────────────────────────
+// Saves a PDF blob to disk. Prefers the File System Access API so the browser
+// always shows a native "Save As" dialog — this sidesteps Chrome's "Ask where
+// to save each file" download setting (which some corporate policies lock to
+// off, silently dumping everything into Downloads). Falls back to the classic
+// anchor-click download for browsers/contexts where that API isn't available.
+// Returns false only when the user explicitly cancels the save dialog.
+async function savePdfBlob(blob, suggestedName) {
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName,
+        types: [{ description: 'PDF file', accept: { 'application/pdf': ['.pdf'] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return true;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return false; // user cancelled the dialog
+      console.warn('showSaveFilePicker unavailable, falling back to direct download', err);
+      // fall through to the classic download below
+    }
+  }
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href = url; a.download = suggestedName;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  return true;
+}
+
 async function exportPDF(idList = null) {
   const exportPages = idList
     ? pages.filter(p => idList.includes(p.id))
@@ -1305,12 +1336,13 @@ async function exportPDF(idList = null) {
 
     const pdfBytes = await newDoc.save();
     const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = `output-${++exportCount}.pdf`;
-    document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 2000);
-    showToast(`✓ Exported ${exportPages.length} page${exportPages.length === 1 ? '' : 's'}`);
+    const filename = `output-${++exportCount}.pdf`;
+    const saved = await savePdfBlob(blob, filename);
+    if (saved) {
+      showToast(`✓ Exported ${exportPages.length} page${exportPages.length === 1 ? '' : 's'}`);
+    } else {
+      showToast('Export cancelled');
+    }
   } catch (e) {
     console.error(e);
     showToast('Export failed — check console for details');
