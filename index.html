@@ -1111,7 +1111,7 @@ function buildCard(pageObj) {
       <button class="action-btn btn-duplicate" title="Duplicate page"
         onclick="event.stopPropagation(); selectedIds.has(${pageObj.id})&&selectedIds.size>1?duplicateSelected():duplicatePage(${pageObj.id})">⧉</button>
       <button class="action-btn btn-delete" title="Delete page"
-        onclick="event.stopPropagation(); deletePage(${pageObj.id})"><svg width="11" height="12" viewBox="0 0 11 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h9"/><path d="M3.5 3V1.5h4V3"/><path d="M2 3l.7 7.5h6.6L10 3"/></svg></button>
+        onclick="event.stopPropagation(); selectedIds.has(${pageObj.id})&&selectedIds.size>1?deleteSelected():deletePage(${pageObj.id})"><svg width="11" height="12" viewBox="0 0 11 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h9"/><path d="M3.5 3V1.5h4V3"/><path d="M2 3l.7 7.5h6.6L10 3"/></svg></button>
     </div>
     <div class="rotate-btns">
       <button class="rotate-pill" title="Rotate left"
@@ -1154,10 +1154,19 @@ function buildCard(pageObj) {
     const ghost = document.createElement('div');
     ghost.className = 'page-card-ghost';
     ghost.id = 'dup-ghost';
-    ghost.style.height = card.offsetHeight + 'px';
     ghost.textContent = '⧉';
     const grid = document.getElementById('page-grid');
-    if (card.nextSibling) grid.insertBefore(ghost, card.nextSibling);
+    // duplicateSelected() inserts copies after the LAST selected page, not
+    // necessarily this one — anchor the preview there when this card is part
+    // of a multi-selection so it doesn't point at the wrong slot.
+    let anchorCard = card;
+    if (selectedIds.has(pageObj.id) && selectedIds.size > 1) {
+      const selectedPages = pages.filter(p => selectedIds.has(p.id));
+      const lastId = selectedPages[selectedPages.length - 1].id;
+      anchorCard = document.querySelector(`.page-card[data-id="${lastId}"]`) || card;
+    }
+    ghost.style.height = anchorCard.offsetHeight + 'px';
+    if (anchorCard.nextSibling) grid.insertBefore(ghost, anchorCard.nextSibling);
     else grid.appendChild(ghost);
     requestAnimationFrame(() => ghost.classList.add('ghost-visible'));
   });
