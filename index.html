@@ -1054,9 +1054,17 @@ async function renderThumbnail(pageObj, thumbWidth = 164) {
     // ── PDF file ───────────────────────────────────────────────────────────
     const pdfPage = await cache.pdfJsDoc.getPage(pageObj.pageIndex + 1);
 
-    const baseVP  = pdfPage.getViewport({ scale: 1, rotation: 0 });
+    // pdf.js's `rotation` option is an ABSOLUTE angle that replaces the page's
+    // own /Rotate entry rather than adding to it. Many scanners (e.g. our
+    // office Ricoh) bake a /Rotate value into every page to correct the scan
+    // orientation, so we have to layer the user's manual rotation on top of
+    // that intrinsic value instead of overwriting it.
+    const intrinsicRotation = pdfPage.rotate || 0;
+    const effRotation = (intrinsicRotation + pageObj.rotation + 360) % 360;
+
+    const baseVP  = pdfPage.getViewport({ scale: 1, rotation: intrinsicRotation });
     const scale   = thumbWidth / baseVP.width;
-    const viewport = pdfPage.getViewport({ scale, rotation: pageObj.rotation });
+    const viewport = pdfPage.getViewport({ scale, rotation: effRotation });
 
     const canvas  = document.createElement('canvas');
     canvas.width  = Math.round(viewport.width);
@@ -1433,8 +1441,10 @@ async function getPageAspectRatio(pageObj) {
       await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = cache.imageDataURL; });
       return img.naturalWidth / img.naturalHeight;
     } else {
-      const vp = (await cache.pdfJsDoc.getPage(pageObj.pageIndex + 1))
-                   .getViewport({ scale: 1, rotation: 0 });
+      const pdfPage = await cache.pdfJsDoc.getPage(pageObj.pageIndex + 1);
+      // Respect the page's own /Rotate entry (e.g. from scanner-generated
+      // PDFs) — see the comment in renderThumbnail() for why.
+      const vp = pdfPage.getViewport({ scale: 1, rotation: pdfPage.rotate || 0 });
       return vp.width / vp.height;
     }
   } catch { return 0.775; }
@@ -1473,9 +1483,12 @@ async function lbRenderToCanvas(pageObj, slotW, slotH) {
       return canvas;
     } else {
       const pdfPage = await cache.pdfJsDoc.getPage(pageObj.pageIndex + 1);
-      const baseVP  = pdfPage.getViewport({ scale: 1, rotation: pageObj.rotation });
+      // See the comment in renderThumbnail() — combine the page's own
+      // /Rotate with the user's manual rotation rather than overwriting it.
+      const effRotation = ((pdfPage.rotate || 0) + pageObj.rotation + 360) % 360;
+      const baseVP  = pdfPage.getViewport({ scale: 1, rotation: effRotation });
       const sc      = Math.min(slotW / baseVP.width, slotH / baseVP.height);
-      const vp      = pdfPage.getViewport({ scale: sc, rotation: pageObj.rotation });
+      const vp      = pdfPage.getViewport({ scale: sc, rotation: effRotation });
       canvas.width  = Math.round(vp.width);
       canvas.height = Math.round(vp.height);
       await pdfPage.render({ canvasContext: ctx, viewport: vp }).promise;
