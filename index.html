@@ -1442,9 +1442,14 @@ async function getPageAspectRatio(pageObj) {
       return img.naturalWidth / img.naturalHeight;
     } else {
       const pdfPage = await cache.pdfJsDoc.getPage(pageObj.pageIndex + 1);
-      // Respect the page's own /Rotate entry (e.g. from scanner-generated
-      // PDFs) — see the comment in renderThumbnail() for why.
-      const vp = pdfPage.getViewport({ scale: 1, rotation: pdfPage.rotate || 0 });
+      // Combine the page's own /Rotate entry with the user's manual rotation —
+      // see the comment in renderThumbnail() for why. Using intrinsic rotation
+      // alone here made the lightbox slot's aspect ratio disagree with what
+      // lbRenderToCanvas() actually draws into it once a page has been
+      // manually rotated, so the rendered page ends up letterboxed/cropped
+      // against a slot shaped for the wrong orientation.
+      const effRotation = ((pdfPage.rotate || 0) + pageObj.rotation + 360) % 360;
+      const vp = pdfPage.getViewport({ scale: 1, rotation: effRotation });
       return vp.width / vp.height;
     }
   } catch { return 0.775; }
